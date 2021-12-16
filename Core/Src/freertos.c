@@ -26,7 +26,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "util.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,7 +46,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+#ifdef DEBUG
+char pcWriteBuffer[512];
+#endif
 /* USER CODE END Variables */
 /* Definitions for Task01 */
 osThreadId_t Task01Handle;
@@ -62,6 +64,13 @@ const osThreadAttr_t Task02_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for SystemMonitorTa */
+osThreadId_t SystemMonitorTaHandle;
+const osThreadAttr_t SystemMonitorTa_attributes = {
+  .name = "SystemMonitorTa",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* Definitions for Timer01 */
 osTimerId_t Timer01Handle;
 const osTimerAttr_t Timer01_attributes = {
@@ -74,6 +83,7 @@ const osTimerAttr_t Timer01_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartTask02(void *argument);
+void StartSystemMonitorTask(void *argument);
 void PeriodicTimerCb01(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -115,6 +125,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of Task02 */
   Task02Handle = osThreadNew(StartTask02, NULL, &Task02_attributes);
 
+  /* creation of SystemMonitorTa */
+  SystemMonitorTaHandle = osThreadNew(StartSystemMonitorTask, NULL, &SystemMonitorTa_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -141,6 +154,29 @@ void StartTask02(void *argument)
     osDelay(1);
   }
   /* USER CODE END StartTask02 */
+}
+
+/* USER CODE BEGIN Header_StartSystemMonitorTask */
+/**
+* @brief Function implementing the SystemMonitorTa thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartSystemMonitorTask */
+void StartSystemMonitorTask(void *argument)
+{
+  /* USER CODE BEGIN StartSystemMonitorTask */
+  /* Infinite loop */
+  for(;;)
+  {
+#ifdef DEBUG
+      osDelay(2000);
+      vTaskList(pcWriteBuffer);
+      DBG("%s\n", pcWriteBuffer);
+#endif
+    osDelay(1);
+  }
+  /* USER CODE END StartSystemMonitorTask */
 }
 
 /* PeriodicTimerCb01 function */
