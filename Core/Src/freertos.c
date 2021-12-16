@@ -37,6 +37,7 @@ typedef int (*cbFunc)(const char *__restrict, ...);
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define SHOW_SYSTEM_INFO             (0U)
 #define SOFTWARE_TIMER_PERIOD_MS     (5000U)
 #define QUEUE_SEND_TIMEOUT_MS        (10U)
 /* USER CODE END PD */
@@ -75,12 +76,14 @@ const osThreadAttr_t Task02_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for SystemMonitorTa */
+#if (SHOW_SYSTEM_INFO)
 osThreadId_t SystemMonitorTaHandle;
 const osThreadAttr_t SystemMonitorTa_attributes = {
   .name = "SystemMonitorTa",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+#endif
 /* Definitions for Queue01 */
 osMessageQueueId_t Queue01Handle;
 const osMessageQueueAttr_t Queue01_attributes = {
@@ -155,8 +158,9 @@ void MX_FREERTOS_Init(void) {
   Task02Handle = osThreadNew((osThreadFunc_t)StartTask02, cbLogs, &Task02_attributes);
 
   /* creation of SystemMonitorTa */
+#if (SHOW_SYSTEM_INFO)
   SystemMonitorTaHandle = osThreadNew(StartSystemMonitorTask, NULL, &SystemMonitorTa_attributes);
-
+#endif
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -179,6 +183,7 @@ void StartTask01(void *argument)
   /* USER CODE BEGIN StartTask01 */
   osTimerStart(Timer01Handle, SOFTWARE_TIMER_PERIOD_MS);
   osSemaphoreAcquire(BinarySem01Handle, osWaitForever);
+  data.last_tick_ts = uwTick;
   /* Infinite loop */
   for(;;)
   {
@@ -221,6 +226,7 @@ void StartTask02(cbFunc cbLogs)
 * @retval None
 */
 /* USER CODE END Header_StartSystemMonitorTask */
+#if (SHOW_SYSTEM_INFO)
 void StartSystemMonitorTask(void *argument)
 {
   /* USER CODE BEGIN StartSystemMonitorTask */
@@ -236,6 +242,7 @@ void StartSystemMonitorTask(void *argument)
   }
   /* USER CODE END StartSystemMonitorTask */
 }
+#endif
 
 /* PeriodicTimerCb01 function */
 void PeriodicTimerCb01(void *argument)
