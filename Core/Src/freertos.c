@@ -32,7 +32,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef int (*cbFunc)(const char *__restrict, ...);
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -103,7 +103,7 @@ const osSemaphoreAttr_t BinarySem01_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartTask01(void *argument);
-void StartTask02(void *argument);
+void StartTask02(cbFunc cbLogs);
 void StartSystemMonitorTask(void *argument);
 void PeriodicTimerCb01(void *argument);
 
@@ -116,7 +116,7 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
-
+  cbFunc cbLogs = printf;
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -152,7 +152,7 @@ void MX_FREERTOS_Init(void) {
   Task01Handle = osThreadNew(StartTask01, NULL, &Task01_attributes);
 
   /* creation of Task02 */
-  Task02Handle = osThreadNew(StartTask02, NULL, &Task02_attributes);
+  Task02Handle = osThreadNew((osThreadFunc_t)StartTask02, cbLogs, &Task02_attributes);
 
   /* creation of SystemMonitorTa */
   SystemMonitorTaHandle = osThreadNew(StartSystemMonitorTask, NULL, &SystemMonitorTa_attributes);
@@ -197,14 +197,14 @@ void StartTask01(void *argument)
   * @retval None
   */
 /* USER CODE END Header_StartTask02 */
-void StartTask02(void *argument)
+void StartTask02(cbFunc cbLogs)
 {
   /* USER CODE BEGIN StartTask02 */
   /* Infinite loop */
   for(;;)
   {
     if (xQueueReceive(Queue01Handle, &data.queue_item, 0) == pdTRUE) {
-      DBG("The Element in the queue is %d, time has been passed %d ms\n",
+        cbLogs("The Element in the queue is %d, time has been passed %d ms\n",
         (unsigned int)data.queue_item, (unsigned int)UW_TICK_DIFF(data.last_tick_ts, uwTick));
 
       data.last_tick_ts = uwTick;
@@ -228,9 +228,9 @@ void StartSystemMonitorTask(void *argument)
   for(;;)
   {
 #ifdef DEBUG
-      osDelay(2000);
-      vTaskList(pcWriteBuffer);
-      DBG("%s\n", pcWriteBuffer);
+    osDelay(2000);
+    vTaskList(pcWriteBuffer);
+    DBG("%s\n", pcWriteBuffer);
 #endif
     osDelay(1);
   }
@@ -241,7 +241,7 @@ void StartSystemMonitorTask(void *argument)
 void PeriodicTimerCb01(void *argument)
 {
   /* USER CODE BEGIN PeriodicTimerCb01 */
-    osSemaphoreRelease(BinarySem01Handle);
+  osSemaphoreRelease(BinarySem01Handle);
   /* USER CODE END PeriodicTimerCb01 */
 }
 
