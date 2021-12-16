@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "util.h"
+#include "queue.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +37,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define SOFTWARE_TIMER_PERIOD_MS     (5000U)
+#define QUEUE_SEND_TIMEOUT_MS        (10U)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,6 +51,14 @@
 #ifdef DEBUG
 char pcWriteBuffer[512];
 #endif
+
+typedef struct {
+    uint32_t counter;
+    uint32_t queue_item;
+    uint32_t last_tick_ts;
+} data_t;
+
+static data_t data;
 /* USER CODE END Variables */
 /* Definitions for Task01 */
 osThreadId_t Task01Handle;
@@ -71,10 +81,20 @@ const osThreadAttr_t SystemMonitorTa_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for Queue01 */
+osMessageQueueId_t Queue01Handle;
+const osMessageQueueAttr_t Queue01_attributes = {
+  .name = "Queue01"
+};
 /* Definitions for Timer01 */
 osTimerId_t Timer01Handle;
 const osTimerAttr_t Timer01_attributes = {
   .name = "Timer01"
+};
+/* Definitions for BinarySem01 */
+osSemaphoreId_t BinarySem01Handle;
+const osSemaphoreAttr_t BinarySem01_attributes = {
+  .name = "BinarySem01"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -82,6 +102,7 @@ const osTimerAttr_t Timer01_attributes = {
 
 /* USER CODE END FunctionPrototypes */
 
+void StartTask01(void *argument);
 void StartTask02(void *argument);
 void StartSystemMonitorTask(void *argument);
 void PeriodicTimerCb01(void *argument);
@@ -102,6 +123,10 @@ void MX_FREERTOS_Init(void) {
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of BinarySem01 */
+  BinarySem01Handle = osSemaphoreNew(1, 1, &BinarySem01_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -114,13 +139,17 @@ void MX_FREERTOS_Init(void) {
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of Queue01 */
+  Queue01Handle = osMessageQueueNew (16, sizeof(uint32_t), &Queue01_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
   /* creation of Task01 */
-  Task01Handle = osThreadNew(StartTask02, NULL, &Task01_attributes);
+  Task01Handle = osThreadNew(StartTask01, NULL, &Task01_attributes);
 
   /* creation of Task02 */
   Task02Handle = osThreadNew(StartTask02, NULL, &Task02_attributes);
@@ -138,6 +167,29 @@ void MX_FREERTOS_Init(void) {
 
 }
 
+/* USER CODE BEGIN Header_StartTask01 */
+/**
+  * @brief  Function implementing the Task01 thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartTask01 */
+void StartTask01(void *argument)
+{
+  /* USER CODE BEGIN StartTask01 */
+  osTimerStart(Timer01Handle, SOFTWARE_TIMER_PERIOD_MS);
+  osSemaphoreAcquire(BinarySem01Handle, osWaitForever);
+  /* Infinite loop */
+  for(;;)
+  {
+    osSemaphoreAcquire(BinarySem01Handle, osWaitForever);
+    data.counter++;
+    xQueueSendToBack(Queue01Handle, &data.counter, QUEUE_SEND_TIMEOUT_MS);
+    osDelay(1);
+  }
+  /* USER CODE END StartTask01 */
+}
+
 /* USER CODE BEGIN Header_StartTask02 */
 /**
   * @brief  Function implementing the Task01 thread.
@@ -151,6 +203,12 @@ void StartTask02(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    if (xQueueReceive(Queue01Handle, &data.queue_item, 0) == pdTRUE) {
+      DBG("The Element in the queue is %d, time has been passed %d ms\n",
+        (unsigned int)data.queue_item, (unsigned int)UW_TICK_DIFF(data.last_tick_ts, uwTick));
+
+      data.last_tick_ts = uwTick;
+    }
     osDelay(1);
   }
   /* USER CODE END StartTask02 */
@@ -183,7 +241,7 @@ void StartSystemMonitorTask(void *argument)
 void PeriodicTimerCb01(void *argument)
 {
   /* USER CODE BEGIN PeriodicTimerCb01 */
-
+    osSemaphoreRelease(BinarySem01Handle);
   /* USER CODE END PeriodicTimerCb01 */
 }
 

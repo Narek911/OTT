@@ -19,4 +19,15 @@
 #define LOG(format, ...) do { } while (0)
 #endif
 
+#define UW_TICK_DIFF(x, y)                              \
+({                                                      \
+    uint32_t result;                                    \
+    if ((y) >= (x)) {                                   \
+        result = y - x;                                 \
+    } else {                                            \
+       result = UINT32_MAX - x + y + 1U;                \
+    }                                                   \
+    result;                                             \
+})
+
 #endif /* UTIL_H_ */
